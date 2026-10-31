@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en-GB" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Route Planner</title>
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#f4f5f2;--surface:#fff;--text:#1d2420;--muted:#5d675f;--line:#dde1db;
+  --a-l:#2f6b3a;--on-l:#fff;--a-d:#7bc58a;--on-d:#0f2a15;
+  --accent:var(--a-l);--accent-fg:var(--on-l);
+  --accent-soft:color-mix(in srgb,var(--accent) 12%,var(--surface));
+  color-scheme:light;
+}
+:root[data-theme="dark"]{
+  --bg:#0f1420;--surface:#172033;--text:#e6ebf5;--muted:#94a0b8;--line:#26314a;
+  --accent:#5b95f7;--accent-fg:#06122b;color-scheme:dark;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--accent);z-index:10}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--accent);color:var(--accent-fg);display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px}
+header h1{margin:0;font-size:1.15rem;font-weight:650}
+.tools{display:flex;align-items:center;gap:10px}
+.dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--accent-fg);padding:0;cursor:pointer}
+.dot[aria-pressed="true"]{outline:2px solid var(--accent-fg);outline-offset:2px}
+.mode{background:transparent;color:var(--accent-fg);border:1px solid var(--accent-fg);border-radius:8px;padding:4px 10px;font:inherit;font-size:.85rem;cursor:pointer}
+nav{display:flex;gap:4px;padding:8px 12px 0;background:var(--surface);border-bottom:1px solid var(--line);overflow-x:auto}
+nav button{background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);font:inherit;font-weight:600;padding:10px 14px;cursor:pointer;white-space:nowrap}
+nav button[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+main{max-width:900px;margin:0 auto;padding:16px}
+section[hidden]{display:none}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.card h2{margin:0 0 4px;font-size:1.05rem}
+.card p{margin:0 0 12px;color:var(--muted);font-size:.92rem}
+.grid{display:grid;gap:12px;grid-template-columns:1fr}
+@media (min-width:640px){.grid{grid-template-columns:1fr 1fr}}
+label{display:block;font-size:.85rem;font-weight:600;margin-bottom:4px}
+input{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text)}
+input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn{font:inherit;font-weight:650;border-radius:10px;padding:11px 18px;border:1px solid var(--accent);cursor:pointer}
+.primary{background:var(--accent);color:var(--accent-fg)}
+.ghost{background:transparent;color:var(--accent)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:600;font-size:.8rem;text-transform:uppercase;letter-spacing:.03em}
+.num{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:.8rem}
+.map{height:200px;border:2px dashed var(--line);border-radius:12px;display:grid;place-items:center;color:var(--muted);background:var(--accent-soft)}
+.tag{font-size:.75rem;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:2px 10px;font-weight:600}
+.note{position:relative;cursor:help;font-size:1.1rem;display:inline-block}
+.note::after{content:attr(data-note);position:absolute;right:100%;top:50%;transform:translateY(-50%);margin-right:6px;width:max-content;max-width:200px;background:var(--text);color:var(--bg);padding:6px 10px;border-radius:8px;font-size:.82rem;line-height:1.35;opacity:0;pointer-events:none;transition:opacity .12s;z-index:5;white-space:normal}
+.note:hover::after,.note:focus::after{opacity:1}
+.fname{margin-left:10px;color:var(--muted);font-size:.9rem}
+.summary{margin-top:12px;font-size:.92rem;line-height:1.7}
+.summary b{color:var(--accent)}
+.tag.warn{background:color-mix(in srgb,#f59e0b 18%,var(--surface));color:#fbbf24}
+.opts{display:grid;gap:8px}
+.opt{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--line);border-radius:10px;cursor:pointer;font-weight:500;margin:0;font-size:1rem}
+.opt input{width:auto;margin:0;accent-color:var(--accent)}
+.opt:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.err{color:#f87171}
+.filters{display:flex;gap:8px;margin:10px 0 14px;flex-wrap:wrap}
+.filters button{font:inherit;font-size:.88rem;font-weight:600;padding:6px 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer}
+.filters button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+.iss{display:flex;gap:12px;align-items:flex-start;padding:12px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;cursor:pointer;line-height:1.5;font-weight:400}
+.iss input{width:22px;height:22px;margin:2px 0 0;flex:none;accent-color:var(--accent)}
+.iss.done{opacity:.6}
+.iss.done b{text-decoration:line-through}
+.meta{color:var(--muted);font-size:.85rem}
+a{color:var(--accent)}
+#map{height:380px;border-radius:12px;border:1px solid var(--line)}
+.leaflet-container{background:var(--bg);font:inherit}
+.pinwrap{background:none;border:0}
+.pin{background:var(--accent);color:var(--accent-fg);border:2px solid #fff;border-radius:50%;width:26px;height:26px;display:grid;place-items:center;font-weight:700;font-size:.78rem;box-shadow:0 1px 4px rgba(0,0,0,.5)}
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+</head>
+<body>
+<header>
+  <h1>🚛 Route Planner</h1>
+</header>
+<nav role="tablist">
+  <button role="tab" aria-selected="true" data-t="route">Route</button>
+  <button role="tab" aria-selected="false" data-t="tanks">Tank pins</button>
+  <button role="tab" aria-selected="false" data-t="report">Report issue</button>
+  <button role="tab" aria-selected="false" data-t="issues">Issues</button>
+  <button role="tab" aria-selected="false" data-t="settings">Settings</button>
+</nav>
+<main>
+<section id="route">
+  <div class="card">
+    <h2>1. Import customers</h2>
+    <p>Excel file with the customer name in column A, the postcode in column B and an optional note in column C.</p>
+    <input type="file" id="file" accept=".xlsx,.xls,.csv" hidden>
+    <button class="btn primary" id="pick">Choose Excel file</button><span id="fname" class="fname"></span>
+    <div id="summary" class="summary"></div>
+  </div>
+  <div class="card">
+    <h2>2. Start and finish</h2>
+    <p>Change the start any time. The route ends at the driver’s home.</p>
+    <div class="grid">
+      <div><label for="s">Start postcode</label><input id="s" placeholder="e.g. CH41 1AA"></div>
+      <div><label for="h">Home postcode (end)</label><input id="h" placeholder="e.g. CH43 2BB"></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>3. Map</h2>
+    <p>Customers will be plotted here.</p>
+    <div id="map"></div>
+  </div>
+  <div class="card">
+    <h2>4. Stops</h2>
+    <p>Your customers in file order. The optimised order will replace this.</p>
+    <div class="wrap"><table>
+      <thead><tr><th>#</th><th>Customer</th><th>Postcode</th><th>Drive</th><th></th></tr></thead>
+      <tbody id="stops"><tr><td colspan="4" style="color:var(--muted)">No file loaded yet.</td></tr></tbody>
+    </table></div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn primary" id="opt">Optimise route</button>
+    </div>
+    <div id="status" class="summary" role="status"></div>
+  </div>
+</section>
+<section id="tanks" hidden>
+  <div class="card"><h2>Tank pins <span class="tag">Coming soon</span></h2><p>Drop pins on the satellite view and save notes such as size, access and gate codes.</p></div>
+</section>
+<section id="report" hidden>
+  <div class="card">
+    <h2>Report a delivery issue</h2>
+    <p>Fill in all four sections, then send.</p>
+    <div class="grid" style="margin-bottom:14px">
+      <div><label for="rf-farm">Farm name</label><input id="rf-farm" list="farms" autocomplete="off" placeholder="Start typing a farm name"><datalist id="farms"></datalist></div>
+      <div><label for="rf-rep">Farm rep</label><input id="rf-rep" autocomplete="off" placeholder="Name of the farm rep"></div>
+    </div>
+    <label>Issue</label>
+    <div class="opts" style="margin-bottom:14px">
+      <label class="opt"><input type="radio" name="issue" value="Missing delivery note"><span>Missing delivery note</span></label>
+      <label class="opt"><input type="radio" name="issue" value="Tank not accessible"><span>Tank not accessible</span></label>
+      <label class="opt"><input type="radio" name="issue" value="Tank full"><span>Tank full</span></label>
+      <label class="opt"><input type="radio" name="issue" value="Delivery not made"><span>Delivery not made</span></label>
+    </div>
+    <div style="margin-bottom:14px"><label for="rf-by">Who is reporting it</label><input id="rf-by" autocomplete="off" placeholder="Your name"></div>
+    <div class="row"><button class="btn primary" id="rf-send">Send report</button></div>
+    <div id="rf-msg" class="summary" role="status"></div>
+  </div>
+</section>
+<section id="issues" hidden>
+  <div class="card">
+    <h2>Reported issues</h2>
+    <p id="i-count"></p>
+    <div class="filters" id="i-filters">
+      <button data-f="open" aria-pressed="true">Open</button>
+      <button data-f="done" aria-pressed="false">Dealt with</button>
+      <button data-f="all" aria-pressed="false">All</button>
+    </div>
+    <div id="i-list"></div>
+  </div>
+</section>
+<section id="settings" hidden>
+  <div class="card"><h2>Settings</h2><p>OpenRouteService API key, used to work out driving times. It is saved on this device only.</p><label for="key">API key</label><input id="key" type="password" autocomplete="off" placeholder="Paste your key"><div class="row" style="margin-top:12px"><button class="btn primary" id="savekey">Save key</button></div><div id="keymsg" class="summary"></div></div>
+</section>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+(function(){
+  document.querySelectorAll("nav button").forEach(function(b){
+    b.addEventListener("click",function(){
+      document.querySelectorAll("nav button").forEach(function(x){x.setAttribute("aria-selected",String(x===b))});
+      document.querySelectorAll("main section").forEach(function(s){s.hidden=s.id!==b.dataset.t});
+      if(typeof map!=="undefined"&&map)map.invalidateSize();
+    });
+  });
+
+  function tidy(p){
+    p=String(p||"").toUpperCase().replace(/\s+/g,"");
+    var m=p.match(/^([A-Z]{1,2}\d[A-Z\d]?)(\d[A-Z]{2})$/);
+    return m?m[1]+" "+m[2]:null;
+  }
+  function esc(t){return String(t).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+  var stops=[],view=null;
+  function render(){
+    var counts={};
+    stops.forEach(function(x){if(x.pc)counts[x.pc]=(counts[x.pc]||0)+1});
+    var bad=stops.filter(function(x){return !x.pc}).length;
+    var h="";
+    (view||stops).forEach(function(x,i){
+      var pc=x.pc?'<a href="https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(x.pc)+'&travelmode=driving" target="_blank" rel="noopener">'+esc(x.pc)+'</a>':'<span class="tag warn">Check: '+esc(x.raw||"missing")+'</span>';
+      var n=x.note?'<span class="note" tabindex="0" role="note" aria-label="'+esc(x.note)+'" data-note="'+esc(x.note)+'">\uD83D\uDCAC</span>':"";
+      h+='<tr><td><span class="num">'+(x.home?"H":(i+1))+'</span></td><td>'+esc(x.name)+'</td><td>'+pc+'</td><td>'+(x.leg!=null?x.leg+" min":"")+'</td><td>'+n+'</td></tr>';
+    });
+    document.getElementById("stops").innerHTML=h||'<tr><td colspan="4" style="color:var(--muted)">No customers found in that file.</td></tr>';
+    var m="<b>"+stops.length+"</b> customers loaded";
+    m+=bad?" · <b>"+bad+"</b> postcode"+(bad>1?"s":"")+" to check":" · all postcodes look valid";
+    var notes=stops.filter(function(x){return x.note}).length;
+    if(notes)m+=" · "+notes+" with notes";
+    document.getElementById("summary").innerHTML=m;
+    document.getElementById("farms").innerHTML=stops.map(function(x){return '<option value="'+esc(x.name)+'">'}).join("");
+  }
+  var issues=[],filt="open";
+  try{issues=JSON.parse(localStorage.getItem("rp-issues")||"[]")}catch(e){issues=[]}
+  function saveIssues(){try{localStorage.setItem("rp-issues",JSON.stringify(issues))}catch(e){}}
+  function renderIssues(){
+    var open=issues.filter(function(x){return !x.done}).length;
+    document.getElementById("i-count").textContent=open+" open · "+(issues.length-open)+" dealt with";
+    var list=issues.filter(function(x){return filt==="all"||(filt==="open"?!x.done:x.done)});
+    document.getElementById("i-list").innerHTML=list.length?list.map(function(x){
+      var d=new Date(x.ts).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
+      return '<label class="iss'+(x.done?' done':'')+'"><input type="checkbox" data-id="'+x.id+'"'+(x.done?' checked':'')+'><span><b>'+esc(x.farm)+'</b> <span class="tag">'+esc(x.issue)+'</span><br><span class="meta">Rep: '+esc(x.rep)+' · Reported by '+esc(x.by)+' · '+d+'</span></span></label>';
+    }).join(""):'<p style="color:var(--muted);margin:0">Nothing here.</p>';
+    document.querySelectorAll("#i-filters button").forEach(function(b){b.setAttribute("aria-pressed",String(b.dataset.f===filt))});
+  }
+  document.getElementById("i-list").addEventListener("change",function(e){
+    var id=e.target.getAttribute("data-id");
+    issues.forEach(function(x){if(String(x.id)===id)x.done=e.target.checked});
+    saveIssues();renderIssues();
+  });
+  document.getElementById("i-filters").addEventListener("click",function(e){
+    var f=e.target.getAttribute("data-f");if(f){filt=f;renderIssues()}
+  });
+  renderIssues();
+  document.getElementById("rf-send").addEventListener("click",function(){
+    var farm=document.getElementById("rf-farm").value.trim(),rep=document.getElementById("rf-rep").value.trim(),by=document.getElementById("rf-by").value.trim();
+    var pick=document.querySelector('input[name="issue"]:checked'),msg=document.getElementById("rf-msg");
+    if(!farm||!rep||!pick||!by){msg.innerHTML='<span class="err">Please fill in all four sections before sending.</span>';return}
+    issues.unshift({id:Date.now(),ts:Date.now(),farm:farm,rep:rep,issue:pick.value,by:by,done:false});
+    saveIssues();renderIssues();
+    document.getElementById("rf-farm").value="";document.getElementById("rf-rep").value="";pick.checked=false;
+    msg.innerHTML='<b>Report logged.</b> It now appears on the Issues page.';
+  });
+  var fileIn=document.getElementById("file");
+  document.getElementById("pick").addEventListener("click",function(){fileIn.click()});
+  fileIn.addEventListener("change",function(){
+    var f=fileIn.files[0];if(!f)return;
+    document.getElementById("fname").textContent=f.name;
+    if(typeof XLSX==="undefined"){document.getElementById("summary").textContent="The Excel reader did not load. Check your connection and refresh.";return}
+    var fr=new FileReader();
+    fr.onload=function(e){
+      try{
+        var wb=XLSX.read(e.target.result,{type:"array"});
+        var rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:""});
+        if(rows.length>1&&!tidy(rows[0][1])&&tidy(rows[1][1]))rows.shift();
+        stops=[];
+        rows.forEach(function(r){
+          var name=String(r[0]==null?"":r[0]).trim(),raw=String(r[1]==null?"":r[1]).trim(),note=String(r[2]==null?"":r[2]).trim();
+          if(!name&&!raw)return;
+          stops.push({name:name||"(no name)",raw:raw,pc:tidy(raw),note:note});
+        });
+        view=null;render();locate();
+      }catch(err){document.getElementById("summary").textContent="Sorry, that file could not be read. Try saving it as .xlsx again."}
+    };
+    fr.readAsArrayBuffer(f);
+  });
+
+  var map=null,layer=null,coords={},KEY="";
+  try{KEY=localStorage.getItem("rp-ors")||""}catch(e){}
+  if(typeof L!=="undefined"){
+    map=L.map("map").setView([51.0,-3.2],8);
+    var street=L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"\u00a9 OpenStreetMap"});
+    var sat=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"Imagery \u00a9 Esri"});
+    street.addTo(map);L.control.layers({"Street":street,"Satellite":sat}).addTo(map);
+    layer=L.layerGroup().addTo(map);
+  }
+  var statusEl=document.getElementById("status");
+  function say(t,bad){statusEl.innerHTML=bad?'<span class="err">'+t+'</span>':t}
+  function uniq(a){return a.filter(function(v,i){return a.indexOf(v)===i})}
+  function geocode(pcs){
+    var todo=pcs.filter(function(p){return !coords[p]}),jobs=[];
+    for(var i=0;i<todo.length;i+=100){
+      jobs.push(fetch("https://api.postcodes.io/postcodes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({postcodes:todo.slice(i,i+100)})})
+        .then(function(r){return r.json()})
+        .then(function(j){(j.result||[]).forEach(function(x){if(x.result&&x.result.latitude!=null)coords[x.query]={lat:x.result.latitude,lon:x.result.longitude}})}));
+    }
+    return Promise.all(jobs);
+  }
+  function plot(){
+    if(!map)return;
+    layer.clearLayers();var pts=[];
+    stops.forEach(function(x){
+      var c=x.pc&&coords[x.pc];if(!c)return;
+      pts.push([c.lat,c.lon]);
+      L.circleMarker([c.lat,c.lon],{radius:6,color:"#fff",weight:1.5,fillColor:"#5b95f7",fillOpacity:.95})
+        .bindPopup("<b>"+esc(x.name)+"</b><br>"+x.pc+(x.note?"<br>"+esc(x.note):"")).addTo(layer);
+    });
+    if(pts.length)map.fitBounds(pts,{padding:[30,30]});
+  }
+  function locate(){
+    say("Locating postcodes\u2026");
+    geocode(uniq(stops.filter(function(x){return x.pc}).map(function(x){return x.pc}))).then(function(){
+      plot();
+      var miss=stops.filter(function(x){return !x.pc||!coords[x.pc]}).length;
+      say(miss?miss+" customer"+(miss>1?"s":"")+" could not be located and will be left out of the route.":"All postcodes located.",!!miss);
+    }).catch(function(){say("Could not reach the postcode service. Check your connection.",true)});
+  }
+  function durations(locs){
+    var n=locs.length,per=Math.max(1,Math.floor(3000/n)),M=[],jobs=[];
+    for(var i=0;i<n;i+=per){
+      (function(a){
+        var src=[];for(var k=a;k<Math.min(n,a+per);k++)src.push(k);
+        jobs.push(fetch("https://api.openrouteservice.org/v2/matrix/driving-car",{method:"POST",headers:{"Content-Type":"application/json","Authorization":KEY},body:JSON.stringify({locations:locs,sources:src,metrics:["duration"]})})
+          .then(function(r){if(!r.ok)throw new Error("matrix "+r.status);return r.json()})
+          .then(function(j){j.durations.forEach(function(row,q){M[src[q]]=row})}));
+      })(i);
+    }
+    return Promise.all(jobs).then(function(){return M});
+  }
+  function solve(M,n){
+    function c(a,b){var v=M[a][b];return v==null?1e7:v}
+    function cost(p){var t=0;for(var i=0;i<p.length-1;i++)t+=c(p[i],p[i+1]);return t}
+    var left=[],path=[0],cur=0,i,j;
+    for(i=1;i<n-1;i++)left.push(i);
+    while(left.length){var bi=0;for(var k=1;k<left.length;k++)if(c(cur,left[k])<c(cur,left[bi]))bi=k;cur=left.splice(bi,1)[0];path.push(cur)}
+    path.push(n-1);
+    var best=cost(path),imp=true,guard=0;
+    while(imp&&guard++<50){
+      imp=false;
+      for(i=1;i<path.length-2;i++)for(j=i+1;j<path.length-1;j++){
+        var q=path.slice(0,i).concat(path.slice(i,j+1).reverse(),path.slice(j+1)),qc=cost(q);
+        if(qc<best-1e-6){path=q;best=qc;imp=true}
+      }
+    }
+    return {path:path,cost:best,c:c};
+  }
+  function pin(ll,t,html){return L.marker(ll,{icon:L.divIcon({className:"pinwrap",html:'<div class="pin">'+t+'</div>',iconSize:[26,26],iconAnchor:[13,13]})}).bindPopup(html).addTo(layer)}
+  function drawRoute(seq,sp,hp){
+    if(!map)return;
+    layer.clearLayers();
+    var line=[[coords[sp].lat,coords[sp].lon]];
+    seq.forEach(function(g){line.push([coords[g.pc].lat,coords[g.pc].lon])});
+    line.push([coords[hp].lat,coords[hp].lon]);
+    L.polyline(line,{color:"#5b95f7",weight:3,dashArray:"6 6"}).addTo(layer);
+    pin(line[0],"S","Start: "+sp);
+    seq.forEach(function(g,k){pin([coords[g.pc].lat,coords[g.pc].lon],k+1,"<b>"+g.names.map(esc).join("<br>")+"</b><br>"+g.pc)});
+    pin(line[line.length-1],"H","Home: "+hp);
+    map.fitBounds(line,{padding:[30,30]});
+  }
+  document.getElementById("opt").addEventListener("click",function(){
+    var sp=tidy(document.getElementById("s").value),hp=tidy(document.getElementById("h").value);
+    if(!KEY){say("Add your OpenRouteService key in Settings first.",true);return}
+    if(!stops.length){say("Choose your Excel file first.",true);return}
+    if(!sp||!hp){say("Enter a valid start postcode and home postcode.",true);return}
+    var ok=stops.filter(function(x){return x.pc&&coords[x.pc]});
+    var pcs=uniq(ok.map(function(x){return x.pc}));
+    say("Working out the best route\u2026");
+    geocode([sp,hp]).then(function(){
+      if(!coords[sp]||!coords[hp])throw new Error("start");
+      var nodes=[sp].concat(pcs,[hp]);
+      return durations(nodes.map(function(p){return [coords[p].lon,coords[p].lat]})).then(function(M){
+        var r=solve(M,nodes.length),out=[],seq=[],prev=0;
+        r.path.slice(1,-1).forEach(function(nd){
+          var pc=nodes[nd],leg=Math.round(r.c(prev,nd)/60),first=true,names=[];
+          ok.forEach(function(x){
+            if(x.pc!==pc)return;
+            names.push(x.name);
+            out.push({name:x.name,pc:x.pc,raw:x.raw,note:x.note,leg:first?leg:0});first=false;
+          });
+          seq.push({pc:pc,names:names});prev=nd;
+        });
+        out.push({name:"Home",pc:hp,raw:hp,note:"",leg:Math.round(r.c(prev,nodes.length-1)/60),home:true});
+        view=out;render();drawRoute(seq,sp,hp);
+        var mins=Math.round(r.cost/60);
+        say("Total driving: <b>"+Math.floor(mins/60)+"h "+(mins%60)+"m</b> for "+ok.length+" drops. Map lines show the order, not the roads.");
+      });
+    }).catch(function(e){
+      say(String(e.message).indexOf("matrix 401")>-1||String(e.message).indexOf("matrix 403")>-1?"The routing key was not accepted. Check it in Settings.":"Could not work out the route. Check your connection and postcodes, then try again.",true);
+    });
+  });
+  var keyIn=document.getElementById("key");keyIn.value=KEY;
+  document.getElementById("savekey").addEventListener("click",function(){
+    KEY=keyIn.value.trim();try{localStorage.setItem("rp-ors",KEY)}catch(e){}
+    document.getElementById("keymsg").textContent=KEY?"Saved on this device.":"Key cleared.";
+  });
+  ["s","h"].forEach(function(id){
+    var el=document.getElementById(id);
+    try{el.value=localStorage.getItem("rp-"+id)||""}catch(e){}
+    el.addEventListener("input",function(){try{localStorage.setItem("rp-"+id,el.value)}catch(e){}});
+  });
+})();
+</script>
+</body>
+</html>
